@@ -1,0 +1,150 @@
+import pandas as pd
+
+BASE_URL = 'https://raw.githubusercontent.com/bryanwertz/Fantasy-Data/main/pbp_data/pbp-{year_num}.csv'
+
+df = pd.DataFrame()
+
+for year in range(2013,2022):
+  year_df = pd.read_csv(BASE_URL.format(year_num=year))
+  year_df = year_df.loc[(year_df['PlayType'] == 'PASS') | (year_df['PlayType'] == 'RUSH') | (year_df['PlayType'] == 'SCRAMBLE')]
+  df = pd.concat([df, year_df])
+
+# format column types for later analysis
+df['SeasonYear'] = df['SeasonYear'].astype(str).str[0:4]
+df['IsRush'] = df['IsRush'].astype(bool)
+df['IsPass'] = df['IsPass'].astype(bool)
+
+df['yardline_100'] = 100 - df['YardLine']
+df = df.loc[df['yardline_100'] > 0]
+
+
+# set up separate rushing and passing/receiving df's
+rushing_df = df[['IsRush', 'IsTouchdown', 'yardline_100', 'SeasonYear']].loc[(df['PlayType'] == 'RUSH') | (df['PlayType'] == 'SCRAMBLE')]
+pass_rec_df = df[['IsPass', 'IsTouchdown', 'yardline_100', 'SeasonYear']].loc[df['PlayType'] == 'PASS']
+
+# calculate % chance that a play results in a TD by yardline for individual years
+ind_rushing_df_probs = rushing_df.groupby(['SeasonYear','yardline_100'])['IsTouchdown'].value_counts(normalize=True)
+ind_pass_rec_df_probs = pass_rec_df.groupby(['SeasonYear','yardline_100'])['IsTouchdown'].value_counts(normalize=True)
+
+# reformat df's using the SeasonYear as the index adding probability of TD as a column title
+ind_rushing_df_probs = pd.DataFrame({
+    'probability_of_touchdown': ind_rushing_df_probs.values
+}, index = ind_rushing_df_probs.index).reset_index()
+
+ind_pass_rec_df_probs = pd.DataFrame({
+    'probability_of_touchdown': ind_pass_rec_df_probs.values
+}, index = ind_pass_rec_df_probs.index).reset_index()
+
+# isolate TD=True and drop column
+ind_rushing_df_probs = ind_rushing_df_probs.loc[ind_rushing_df_probs['IsTouchdown'] == 1]
+ind_pass_rec_df_probs = ind_pass_rec_df_probs.loc[ind_pass_rec_df_probs['IsTouchdown'] == 1]
+
+ind_rushing_df_probs = ind_rushing_df_probs.drop('IsTouchdown', axis = 1)
+ind_pass_rec_df_probs = ind_pass_rec_df_probs.drop('IsTouchdown', axis = 1)
+
+
+import seaborn as sns; sns.set_style('whitegrid')
+from matplotlib import pyplot as plt
+
+# rushing probability chart by year
+plt.figure(figsize=(12, 8))
+
+sns.lineplot(data = ind_rushing_df_probs, x='yardline_100', y='probability_of_touchdown', hue = 'SeasonYear', palette = 'flare')
+
+
+# passing / receiving probability chart by year
+plt.figure(figsize=(12, 8))
+
+sns.lineplot(data = ind_pass_rec_df_probs, x='yardline_100', y='probability_of_touchdown', hue = 'SeasonYear', palette = 'flare')
+
+
+# calculate average TD probability for the full dataset regardless of year
+
+rushing_df_probs = rushing_df.groupby('yardline_100')['IsTouchdown'].value_counts(normalize=True)
+
+pass_rec_df_probs = pass_rec_df.groupby('yardline_100')['IsTouchdown'].value_counts(normalize=True)
+
+rushing_df_probs = pd.DataFrame({
+    'probability_of_touchdown': rushing_df_probs.values
+}, index = rushing_df_probs.index).reset_index()
+
+pass_rec_df_probs = pd.DataFrame({
+    'probability_of_touchdown': pass_rec_df_probs.values
+}, index = pass_rec_df_probs.index).reset_index()
+
+rushing_df_probs = rushing_df_probs.loc[rushing_df_probs['IsTouchdown'] == 1]
+pass_rec_df_probs = pass_rec_df_probs.loc[pass_rec_df_probs['IsTouchdown'] == 1]
+
+rushing_df_probs = rushing_df_probs.drop('IsTouchdown', axis = 1)
+pass_rec_df_probs = pass_rec_df_probs.drop('IsTouchdown', axis = 1)
+
+# save recent df's down to google drive
+rushing_df_probs.to_csv('/content/drive/MyDrive/FFData/rush_TD_prob.csv')
+pass_rec_df_probs.to_csv('/content/drive/MyDrive/FFData/pass_rec_TD_prob.csv')
+
+
+plt.figure(figsize=(12, 8))
+
+sns.lineplot(data = rushing_df_probs, x='yardline_100', y='probability_of_touchdown')
+
+
+plt.figure(figsize=(12, 8))
+
+sns.lineplot(data = pass_rec_df_probs, x='yardline_100', y='probability_of_touchdown')
+
+
+# set start year to define recent dataset, look at individual years
+
+start_year = 2016
+
+ind_rushing_df_probs_recent = ind_rushing_df_probs.loc[ind_rushing_df_probs['SeasonYear'] >= str(start_year)]
+ind_pass_rec_df_probs_recent = ind_pass_rec_df_probs.loc[ind_pass_rec_df_probs['SeasonYear'] >= str(start_year)]
+
+
+# rushing probability by year for recent dataset
+
+plt.figure(figsize=(12, 8))
+
+sns.lineplot(data = ind_rushing_df_probs_recent, x='yardline_100', y='probability_of_touchdown', hue='SeasonYear', palette = 'flare')
+
+
+# passing / receving probability by year for recent dataset
+
+plt.figure(figsize=(12, 8))
+
+sns.lineplot(data = ind_pass_rec_df_probs_recent, x='yardline_100', y='probability_of_touchdown',hue='SeasonYear', palette = 'flare')
+
+
+# calculate average TD probability for the recent dataset regardless of year
+
+rushing_df_probs_recent = rushing_df.loc[rushing_df['SeasonYear'] >= str(start_year)].groupby('yardline_100')['IsTouchdown'].value_counts(normalize=True)
+
+pass_rec_df_probs_recent = pass_rec_df.loc[pass_rec_df['SeasonYear'] >= str(start_year)].groupby('yardline_100')['IsTouchdown'].value_counts(normalize=True)
+
+rushing_df_probs_recent = pd.DataFrame({
+    'probability_of_touchdown': rushing_df_probs_recent.values
+}, index = rushing_df_probs_recent.index).reset_index()
+
+pass_rec_df_probs_recent = pd.DataFrame({
+    'probability_of_touchdown': pass_rec_df_probs_recent.values
+}, index = pass_rec_df_probs_recent.index).reset_index()
+
+rushing_df_probs_recent = rushing_df_probs_recent.loc[rushing_df_probs_recent['IsTouchdown'] == 1]
+pass_rec_df_probs_recent = pass_rec_df_probs_recent.loc[pass_rec_df_probs_recent['IsTouchdown'] == 1]
+
+rushing_df_probs_recent = rushing_df_probs_recent.drop('IsTouchdown', axis = 1)
+pass_rec_df_probs_recent = pass_rec_df_probs_recent.drop('IsTouchdown', axis = 1)
+
+# save recent df's down to google drive
+rushing_df_probs_recent.to_csv('/content/drive/MyDrive/FFData/recent_rush_TD_prob.csv')
+pass_rec_df_probs_recent.to_csv('/content/drive/MyDrive/FFData/recent_pass_rec_TD_prob.csv')
+
+
+plt.figure(figsize=(12, 8))
+
+sns.lineplot(data = rushing_df_probs_recent, x='yardline_100', y='probability_of_touchdown')
+
+
+plt.figure(figsize=(12, 8))
+
+sns.lineplot(data = pass_rec_df_probs_recent, x='yardline_100', y='probability_of_touchdown')

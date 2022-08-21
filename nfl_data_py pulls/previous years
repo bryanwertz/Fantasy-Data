@@ -1,0 +1,82 @@
+%pip install nfl_data_py
+
+# nfl_data_py documentation https://pypi.org/project/nfl-data-py/
+
+import nfl_data_py as nfl
+import pandas as pd
+
+# set up lists and column filters
+
+current_year = [2022]
+hist_years = list(range(2012, max(current_year)))
+total_years = list(range(2012, max(current_year)+1))
+
+pbp_columns = ['play_id', 'posteam', 'defteam', 'week', 'yardline_100', 'ydstogo', 'play_type',
+               'yards_gained', 'qb_kneel', 'qb_spike', 'two_point_conv_result', 'td_team',
+               'td_player_name', 'td_player_id', 'interception', 'fumble_forced', 'fumble_not_forced',
+               'fumble_lost', 'rush_attempt', 'pass_attempt', 'touchdown', 'pass_touchdown',
+               'rush_touchdown', 'return_touchdown', 'two_point_attempt', 'fumble', 'complete_pass',
+               'passing_yards', 'receiving_yards', 'rushing_yards', 'fumbled_1_team',
+               'fumbled_1_player_id', 'fumbled_1_player_name', 'fumbled_2_player_id',
+               'fumbled_2_player_name', 'fumbled_2_team', 'season', 'passer', 'rusher',
+               'receiver', 'pass', 'rush', 'play', 'passer_id', 'rusher_id', 'receiver_id']
+
+# Was planning to pull the following, but not available for 2021 for some reason ['punt_reterner_player_id', 'punt_returner_player_name','kickoff_returner_player_id', 'kickoff_returner_player_name']
+
+# There are some duplicate columns for player names and ID's, after cursory look they seem to be identical. Alt below has the other set of player columns.
+alt_pbp_columns = ['play_id', 'week', 'yardline_100', 'ydstogo', 'play_type', 'yards_gained',
+                   'qb_kneel', 'qb_spike', 'two_point_conv_result', 'td_team', 'td_player_name',
+                   'td_player_id', 'interception', 'fumble_forced', 'fumble_not_forced', 'fumble_lost',
+                   'rush_attempt', 'pass_attempt', 'touchdown', 'pass_touchdown', 'rush_touchdown',
+                   'return_touchdown', 'two_point_attempt', 'fumble', 'complete_pass',
+                   'passer_player_id', 'passer_player_name', 'passing_yards', 'receiver_player_id',
+                   'receiver_player_name', 'receiving_yards', 'rusher_player_id', 'rusher_player_name',
+                   'rushing_yards', 'fumbled_1_team', 'fumbled_1_player_id', 'fumbled_1_player_name',
+                   'fumbled_2_player_id', 'fumbled_2_player_name', 'fumbled_2_team', 'season', 'pass',
+                   'rush', 'play']
+
+weekly_columns = ['player_id', 'player_name', 'recent_team', 'season', 'week', 'season_type',
+                  'completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions',
+                  'sack_fumbles', 'sack_fumbles_lost', 'passing_2pt_conversions', 
+                  'carries', 'rushing_yards', 'rushing_tds', 'rushing_fumbles',
+                  'rushing_fumbles_lost', 'rushing_2pt_conversions', 'receptions', 'targets',
+                  'receiving_yards', 'receiving_tds', 'receiving_fumbles', 'receiving_fumbles_lost',
+                  'receiving_2pt_conversions', 'special_teams_tds']
+
+season_columns = ['player_id', 'season', 'season_type', 'completions', 'attempts', 'passing_yards',
+                  'passing_tds', 'interceptions', 'sack_fumbles', 'sack_fumbles_lost',
+                  'passing_2pt_conversions', 'carries', 'rushing_yards', 'rushing_tds',
+                  'rushing_fumbles', 'rushing_fumbles_lost', 'rushing_2pt_conversions',
+                  'receptions', 'targets', 'receiving_yards', 'receiving_tds', 'receiving_fumbles',
+                  'receiving_fumbles_lost', 'receiving_2pt_conversions', 'target_share',
+                  'special_teams_tds', 'games']
+
+position_list = ['QB', 'RB', 'WR', 'TE', 'FB']
+
+
+# Historical or static data pulls, only need to run once per year
+
+# player id and defining data
+id_df = nfl.import_ids()
+
+# 2012 - 2021 play by play data
+hist_pbp_df = nfl.import_pbp_data(hist_years, pbp_columns, downcast=True)
+
+# 2012 - 2021 weekly stat data
+hist_weekly_df = nfl.import_weekly_data(hist_years, weekly_columns, downcast=True)
+
+# 2012 - 2021 seasonal stat data
+hist_season_df = nfl.import_seasonal_data(hist_years)
+hist_season_df = hist_season_df[season_columns]
+
+# build in calcs for std/0.5PPR/FullPPR/lambda league scoring, positional ranks (i.e. WR3), and positional tier ranks (i.e. WR1-12 = WR1)
+# or keep the weekly and seasonal tables as raw data and house those calculations somewhere else?
+
+# add calcs for per-game statistics in seasonal data or house those somewhere else?
+
+# 2012 - 2022 schedule data
+schedule_df = nfl.import_schedules(total_years)
+
+# 2012 - 2021 snap data
+hist_snap_df = nfl.import_snap_counts(hist_years)
+hist_snap_df = hist_snap_df.loc[hist_snap_df['position'].isin(position_list)]

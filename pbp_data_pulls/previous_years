@@ -21,4 +21,4 @@ alt_pbp_columns = ['play_id', 'week', 'yardline_100', 'ydstogo', 'play_type', 'y
                   'rushing_yards', 'fumbled_1_team', 'fumbled_1_player_id', 'fumbled_1_player_name', 'fumbled_2_player_id', 'fumbled_2_player_name', 'fumbled_2_team',
                   'season', 'pass', 'rush', 'play']
 
-df = nfl.import_pbp_data(years, pbp_columns, downcast=False)
+df = nfl.import_pbp_data(years, pbp_columns, downcast=True)

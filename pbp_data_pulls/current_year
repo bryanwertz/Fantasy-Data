@@ -2,7 +2,7 @@
 import nfl_data_py as nfl
 import pandas as pd
 
-current_year = 2022
+current_year = [2022]
 
 pbp_columns = ['play_id', 'posteam', 'defteam', 'week', 'yardline_100', 'ydstogo', 'play_type', 'yards_gained', 'qb_kneel', 'qb_spike', 'two_point_conv_result',
                'td_team', 'td_player_name', 'td_player_id', 'interception', 'fumble_forced', 'fumble_not_forced', 'fumble_lost', 'rush_attempt', 'pass_attempt',

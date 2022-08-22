@@ -62,12 +62,51 @@ pbp_df = nfl.import_pbp_data(current_year, pbp_columns, downcast=True)
 # 2022 to-date weekly stat data
 weekly_df = nfl.import_weekly_data(current_year, weekly_columns, downcast=True)
 
+weekly_df['fumbles'] = weekly_df['rushing_fumbles'] + weekly_df['receiving_fumbles'] + weekly_df['sack_fumbles']
+weekly_df['fumbles_lost'] = weekly_df['rushing_fumbles_lost'] + weekly_df['receiving_fumbles_lost'] + weekly_df['sack_fumbles_lost']
+weekly_df['lambda_fantasy_points'] = (
+    weekly_df['receptions']*lambda_scoring_weights['receptions'] + weekly_df['receiving_yards']*lambda_scoring_weights['receiving_yds']+
+    weekly_df['receiving_tds']*lambda_scoring_weights['receiving_td'] + weekly_df['fumbles_lost']*lambda_scoring_weights['fumbles_lost']+
+    weekly_df['rushing_yards']*lambda_scoring_weights['rushing_yds']+weekly_df['rushing_tds']*lambda_scoring_weights['rushing_td']+
+    weekly_df['passing_yards']*lambda_scoring_weights['passing_yds']+weekly_df['passing_tds']*lambda_scoring_weights['passing_td']+
+    weekly_df['interceptions']*lambda_scoring_weights['int'] +weekly_df['special_teams_tds']*lambda_scoring_weights['st_td'] )
+
+# add position label from id_df
+merge_id_df = id_df[['gsis_id', 'name', 'position']].rename(columns={'gsis_id': 'player_id'})
+weekly_df = weekly_df.merge(merge_id_df, how='left', on='player_id').drop(columns='name', axis = 1).loc[weekly_df['season_type'] == 'REG']
+
+weekly_df['pos_rank'] = weekly_df.groupby(['position','season', 'week'])['lambda_fantasy_points'].rank(method = 'min', ascending = False).astype(int)
+weekly_df['pos_rank_label'] = weekly_df['position'] + weekly_df['pos_rank'].astype(str)
+
+weekly_df['pos_tier'] = weekly_df['pos_rank'] / pos_tier_size
+weekly_df['pos_tier'] = weekly_df['pos_tier'].apply(np.ceil).astype(int)
+weekly_df['pos_tier_label'] = weekly_df['position'] + weekly_df['pos_tier'].astype(str)
+
+
 # 2022 to-date seasonal stat data
 season_df = nfl.import_seasonal_data(current_year)
 season_df = season_df[season_columns]
 
-# build in calcs for std/0.5PPR/FullPPR/lambda league scoring, positional ranks (i.e. WR3), and positional tier ranks (i.e. WR1-12 = WR1)
-# or keep the weekly and seasonal tables as raw data and house those calculations somewhere else?
+season_df['fumbles'] = season_df['rushing_fumbles'] + season_df['receiving_fumbles'] + season_df['sack_fumbles']
+season_df['fumbles_lost'] = season_df['rushing_fumbles_lost'] + season_df['receiving_fumbles_lost'] + season_df['sack_fumbles_lost']
+season_df['lambda_fantasy_points'] = (
+    season_df['receptions']*lambda_scoring_weights['receptions'] + season_df['receiving_yards']*lambda_scoring_weights['receiving_yds']+
+    season_df['receiving_tds']*lambda_scoring_weights['receiving_td'] + season_df['fumbles_lost']*lambda_scoring_weights['fumbles_lost']+
+    season_df['rushing_yards']*lambda_scoring_weights['rushing_yds']+season_df['rushing_tds']*lambda_scoring_weights['rushing_td']+
+    season_df['passing_yards']*lambda_scoring_weights['passing_yds']+season_df['passing_tds']*lambda_scoring_weights['passing_td']+
+    season_df['interceptions']*lambda_scoring_weights['int'] +season_df['special_teams_tds']*lambda_scoring_weights['st_td'] )
+
+# add position label from id_df
+merge_id_df = id_df[['gsis_id', 'name', 'position']].rename(columns={'gsis_id': 'player_id'})
+season_df = season_df.merge(merge_id_df, how='left', on='player_id').drop(columns='name', axis = 1).loc[season_df['season_type'] == 'REG']
+
+season_df['pos_rank'] = season_df.groupby(['position','season'])['lambda_fantasy_points'].rank(method = 'min', ascending = False).astype(int)
+season_df['pos_rank_label'] = season_df['position'] + season_df['pos_rank'].astype(str)
+
+season_df['pos_tier'] = season_df['pos_rank'] / pos_tier_size
+season_df['pos_tier'] = season_df['pos_tier'].apply(np.ceil).astype(int)
+season_df['pos_tier_label'] = season_df['position'] + season_df['pos_tier'].astype(str)
+
 
 # add calcs for per-game statistics in seasonal data or house those somewhere else?
 

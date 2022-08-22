@@ -53,6 +53,25 @@ season_columns = ['player_id', 'season', 'season_type', 'completions', 'attempts
 
 position_list = ['QB', 'RB', 'WR', 'TE', 'FB']
 
+lambda_scoring_weights = {
+    'receptions': 0.5, #1/2 PPR
+    'receiving_yds': 0.1,
+    'receiving_td': 6,
+    'fumbles_lost': -2,
+    'rushing_yds': 0.1,
+    'rushing_td': 6,
+    'passing_yds': 0.04,
+    'passing_td': 4,
+    'int': -2,
+    'st_td': 6
+}
+
+pos_tier_size = 12
+
+per_game_cols = ['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions',  'passing_2pt_conversions',
+                 'carries', 'rushing_yards', 'rushing_tds', 'rushing_2pt_conversions', 'receptions', 'targets', 'receiving_yards',
+                 'receiving_tds', 'receiving_2pt_conversions', 'special_teams_tds','fumbles', 'fumbles lost']
+
 
 # Historical or static data pulls, only need to run once per year
 
@@ -111,12 +130,20 @@ hist_season_df['pos_tier'] = hist_season_df['pos_rank'] / pos_tier_size
 hist_season_df['pos_tier'] = hist_season_df['pos_tier'].apply(np.ceil).astype(int)
 hist_season_df['pos_tier_label'] = hist_season_df['position'] + hist_season_df['pos_tier'].astype(str)
 
+# calculate per-game metrics
 
-# add calcs for per-game statistics in seasonal data or house those somewhere else?
+for col in per_game_cols:
+  column_name = str(col+'/g')
+  hist_season_df[column_name] = hist_season_df[col]/hist_season_df['games']
+
 
 # 2012 - 2022 schedule data
 schedule_df = nfl.import_schedules(total_years)
 
 # 2012 - 2021 snap data
 hist_snap_df = nfl.import_snap_counts(hist_years)
-hist_snap_df = hist_snap_df.loc[hist_snap_df['position'].isin(position_list)]
+hist_snap_df = hist_snap_df.loc[hist_snap_df['position'].isin(position_list)].replace({
+    'position': {
+        'FB': 'RB'
+    }
+})

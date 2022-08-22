@@ -107,9 +107,17 @@ season_df['pos_tier'] = season_df['pos_rank'] / pos_tier_size
 season_df['pos_tier'] = season_df['pos_tier'].apply(np.ceil).astype(int)
 season_df['pos_tier_label'] = season_df['position'] + season_df['pos_tier'].astype(str)
 
+# calculate per-game metrics
 
-# add calcs for per-game statistics in seasonal data or house those somewhere else?
+for col in per_game_cols:
+  column_name = str(col+'/g')
+  season_df[column_name] = season_df[col]/season_df['games']
+
 
 # 2022 to-date snap data
 snap_df = nfl.import_snap_counts(current_year)
-snap_df = snap_df.loc[snap_df['position'].isin(position_list)]
+snap_df = snap_df.loc[snap_df['position'].isin(position_list)].replace({
+    'position': {
+        'FB': 'RB'
+    }
+})

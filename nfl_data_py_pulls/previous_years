@@ -79,7 +79,7 @@ hist_weekly_df['lambda_fantasy_points'] = (
 merge_id_df = id_df[['gsis_id', 'name', 'position']].rename(columns={'gsis_id': 'player_id'})
 hist_weekly_df = hist_weekly_df.merge(merge_id_df, how='left', on='player_id').drop(columns='name', axis = 1)
 
-hist_weekly_df['pos_rank'] = hist_weekly_df.groupby(['position','season', 'week'])['lambda_fantasy_points'].rank(method = 'max', ascending = False).astype(int)
+hist_weekly_df['pos_rank'] = hist_weekly_df.groupby(['position','season', 'week'])['lambda_fantasy_points'].rank(method = 'min', ascending = False).astype(int)
 hist_weekly_df['pos_rank_label'] = hist_weekly_df['position'] + hist_weekly_df['pos_rank'].astype(str)
 
 hist_weekly_df['pos_tier'] = hist_weekly_df['pos_rank'] / pos_tier_size
@@ -104,7 +104,7 @@ hist_season_df['lambda_fantasy_points'] = (
 merge_id_df = id_df[['gsis_id', 'name', 'position']].rename(columns={'gsis_id': 'player_id'})
 hist_season_df = hist_season_df.merge(merge_id_df, how='left', on='player_id').drop(columns='name', axis = 1).loc[hist_season_df['season_type'] == 'REG']
 
-hist_season_df['pos_rank'] = hist_season_df.groupby(['position','season'])['lambda_fantasy_points'].rank(method = 'max', ascending = False).astype(int)
+hist_season_df['pos_rank'] = hist_season_df.groupby(['position','season'])['lambda_fantasy_points'].rank(method = 'min', ascending = False).astype(int)
 hist_season_df['pos_rank_label'] = hist_season_df['position'] + hist_season_df['pos_rank'].astype(str)
 
 hist_season_df['pos_tier'] = hist_season_df['pos_rank'] / pos_tier_size

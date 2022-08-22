@@ -77,7 +77,7 @@ hist_weekly_df['lambda_fantasy_points'] = (
 
 # add position label from id_df
 merge_id_df = id_df[['gsis_id', 'name', 'position']].rename(columns={'gsis_id': 'player_id'})
-hist_weekly_df = hist_weekly_df.merge(merge_id_df, how='left', on='player_id').drop(columns='name', axis = 1)
+hist_weekly_df = hist_weekly_df.merge(merge_id_df, how='left', on='player_id').drop(columns='name', axis = 1).loc[hist_weekly_df['season_type'] == 'REG']
 
 hist_weekly_df['pos_rank'] = hist_weekly_df.groupby(['position','season', 'week'])['lambda_fantasy_points'].rank(method = 'min', ascending = False).astype(int)
 hist_weekly_df['pos_rank_label'] = hist_weekly_df['position'] + hist_weekly_df['pos_rank'].astype(str)

@@ -53,6 +53,25 @@ season_columns = ['player_id', 'season', 'season_type', 'completions', 'attempts
 
 position_list = ['QB', 'RB', 'WR', 'TE', 'FB']
 
+lambda_scoring_weights = {
+    'receptions': 0.5, #1/2 PPR
+    'receiving_yds': 0.1,
+    'receiving_td': 6,
+    'fumbles_lost': -2,
+    'rushing_yds': 0.1,
+    'rushing_td': 6,
+    'passing_yds': 0.04,
+    'passing_td': 4,
+    'int': -2,
+    'st_td': 6
+}
+
+pos_tier_size = 12
+
+per_game_cols = ['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions',  'passing_2pt_conversions',
+                 'carries', 'rushing_yards', 'rushing_tds', 'rushing_2pt_conversions', 'receptions', 'targets', 'receiving_yards',
+                 'receiving_tds', 'receiving_2pt_conversions', 'special_teams_tds','fumbles', 'fumbles lost']
+
 
 # Weekly or dynamic data pulls, run daily or weekly
 

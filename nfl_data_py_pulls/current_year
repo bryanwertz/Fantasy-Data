@@ -70,7 +70,7 @@ pos_tier_size = 12
 
 per_game_cols = ['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions',  'passing_2pt_conversions',
                  'carries', 'rushing_yards', 'rushing_tds', 'rushing_2pt_conversions', 'receptions', 'targets', 'receiving_yards',
-                 'receiving_tds', 'receiving_2pt_conversions', 'special_teams_tds','fumbles', 'fumbles lost']
+                 'receiving_tds', 'receiving_2pt_conversions', 'special_teams_tds','fumbles', 'fumbles lost', 'lambda_fantasy_points']
 
 
 # Weekly or dynamic data pulls, run daily or weekly

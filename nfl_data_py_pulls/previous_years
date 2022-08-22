@@ -91,8 +91,26 @@ hist_weekly_df['pos_tier_label'] = hist_weekly_df['position'] + hist_weekly_df['
 hist_season_df = nfl.import_seasonal_data(hist_years)
 hist_season_df = hist_season_df[season_columns]
 
-# build in calcs for std/0.5PPR/FullPPR/lambda league scoring, positional ranks (i.e. WR3), and positional tier ranks (i.e. WR1-12 = WR1)
-# or keep the weekly and seasonal tables as raw data and house those calculations somewhere else?
+hist_season_df['fumbles'] = hist_season_df['rushing_fumbles'] + hist_season_df['receiving_fumbles'] + hist_season_df['sack_fumbles']
+hist_season_df['fumbles_lost'] = hist_season_df['rushing_fumbles_lost'] + hist_season_df['receiving_fumbles_lost'] + hist_season_df['sack_fumbles_lost']
+hist_season_df['lambda_fantasy_points'] = (
+    hist_season_df['receptions']*lambda_scoring_weights['receptions'] + hist_season_df['receiving_yards']*lambda_scoring_weights['receiving_yds']+
+    hist_season_df['receiving_tds']*lambda_scoring_weights['receiving_td'] + hist_season_df['fumbles_lost']*lambda_scoring_weights['fumbles_lost']+
+    hist_season_df['rushing_yards']*lambda_scoring_weights['rushing_yds']+hist_season_df['rushing_tds']*lambda_scoring_weights['rushing_td']+
+    hist_season_df['passing_yards']*lambda_scoring_weights['passing_yds']+hist_season_df['passing_tds']*lambda_scoring_weights['passing_td']+
+    hist_season_df['interceptions']*lambda_scoring_weights['int'] +hist_season_df['special_teams_tds']*lambda_scoring_weights['st_td'] )
+
+# add position label from id_df
+merge_id_df = id_df[['gsis_id', 'name', 'position']].rename(columns={'gsis_id': 'player_id'})
+hist_season_df = hist_season_df.merge(merge_id_df, how='left', on='player_id').drop(columns='name', axis = 1).loc[hist_season_df['season_type'] == 'REG']
+
+hist_season_df['pos_rank'] = hist_season_df.groupby(['position','season'])['lambda_fantasy_points'].rank(method = 'max', ascending = False).astype(int)
+hist_season_df['pos_rank_label'] = hist_season_df['position'] + hist_season_df['pos_rank'].astype(str)
+
+hist_season_df['pos_tier'] = hist_season_df['pos_rank'] / pos_tier_size
+hist_season_df['pos_tier'] = hist_season_df['pos_tier'].apply(np.ceil).astype(int)
+hist_season_df['pos_tier_label'] = hist_season_df['position'] + hist_season_df['pos_tier'].astype(str)
+
 
 # add calcs for per-game statistics in seasonal data or house those somewhere else?
 

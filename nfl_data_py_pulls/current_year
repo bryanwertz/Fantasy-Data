@@ -7,7 +7,7 @@ import pandas as pd
 
 # set up lists and column filters
 
-current_year = [2022]
+current_year = [2021]
 hist_years = list(range(2012, max(current_year)))
 total_years = list(range(2012, max(current_year)+1))
 
@@ -70,7 +70,8 @@ pos_tier_size = 12
 
 per_game_cols = ['completions', 'attempts', 'passing_yards', 'passing_tds', 'interceptions',  'passing_2pt_conversions',
                  'carries', 'rushing_yards', 'rushing_tds', 'rushing_2pt_conversions', 'receptions', 'targets', 'receiving_yards',
-                 'receiving_tds', 'receiving_2pt_conversions', 'special_teams_tds','fumbles', 'fumbles lost', 'lambda_fantasy_points']
+                 'receiving_tds', 'receiving_2pt_conversions', 'special_teams_tds','fumbles', 'fumbles_lost', 
+                 'lambda_fantasy_points', 'offense_snaps']
 
 
 # Weekly or dynamic data pulls, run daily or weekly
@@ -78,7 +79,18 @@ per_game_cols = ['completions', 'attempts', 'passing_yards', 'passing_tds', 'int
 # 2022 to-date play by play data
 pbp_df = nfl.import_pbp_data(current_year, pbp_columns, downcast=True)
 
+
+# 2022 to-date snap data
+snap_df = nfl.import_snap_counts(current_year)
+snap_df = snap_df.loc[snap_df['position'].isin(position_list)].replace({
+    'position': {
+        'FB': 'RB'
+    }
+})
+snap_df = snap_df.rename(columns={'pfr_player_id': 'pfr_id'})
+
 # 2022 to-date weekly stat data
+
 weekly_df = nfl.import_weekly_data(current_year, weekly_columns, downcast=True)
 
 weekly_df['fumbles'] = weekly_df['rushing_fumbles'] + weekly_df['receiving_fumbles'] + weekly_df['sack_fumbles']
@@ -90,11 +102,17 @@ weekly_df['lambda_fantasy_points'] = (
     weekly_df['passing_yards']*lambda_scoring_weights['passing_yds']+weekly_df['passing_tds']*lambda_scoring_weights['passing_td']+
     weekly_df['interceptions']*lambda_scoring_weights['int'] +weekly_df['special_teams_tds']*lambda_scoring_weights['st_td'] )
 
-# add position label from id_df
-merge_id_df = id_df[['gsis_id', 'name', 'position']].rename(columns={'gsis_id': 'player_id'})
-weekly_df = weekly_df.merge(merge_id_df, how='left', on='player_id').drop(columns='name', axis = 1).loc[weekly_df['season_type'] == 'REG']
+# add other id's from id_df
+merge_id_df = id_df[['gsis_id', 'pfr_id', 'name']].rename(columns={'gsis_id': 'player_id'})
+weekly_df = weekly_df.merge(merge_id_df, how='left', on='player_id')
+weekly_df = weekly_df.loc[weekly_df['season_type'] == 'REG']
 
-weekly_df['pos_rank'] = weekly_df.groupby(['position','season', 'week'])['lambda_fantasy_points'].rank(method = 'min', ascending = False).astype(int)
+# add snaps, drop unneeded columns
+weekly_df = weekly_df.merge(snap_df, how='left', on=['season', 'week', 'pfr_id'])
+weekly_df = weekly_df.drop(columns=['name', 'game_type', 'team', 'defense_snaps', 'defense_pct', 'st_snaps', 'st_pct'])
+
+# calculate positional ranks and tiers
+weekly_df['pos_rank'] = weekly_df.groupby(['position', 'week'])['lambda_fantasy_points'].rank(method = 'min', ascending = False).astype(int)
 weekly_df['pos_rank_label'] = weekly_df['position'] + weekly_df['pos_rank'].astype(str)
 
 weekly_df['pos_tier'] = weekly_df['pos_rank'] / pos_tier_size
@@ -115,10 +133,18 @@ season_df['lambda_fantasy_points'] = (
     season_df['passing_yards']*lambda_scoring_weights['passing_yds']+season_df['passing_tds']*lambda_scoring_weights['passing_td']+
     season_df['interceptions']*lambda_scoring_weights['int'] +season_df['special_teams_tds']*lambda_scoring_weights['st_td'] )
 
-# add position label from id_df
-merge_id_df = id_df[['gsis_id', 'name', 'position']].rename(columns={'gsis_id': 'player_id'})
-season_df = season_df.merge(merge_id_df, how='left', on='player_id').drop(columns='name', axis = 1).loc[season_df['season_type'] == 'REG']
+# add id's and position label from id_df
+merge_id_df = id_df[['gsis_id', 'pfr_id', 'name', 'position']].rename(columns={'gsis_id': 'player_id'})
+season_df = season_df.merge(merge_id_df, how='left', on='player_id')
+season_df = season_df.loc[season_df['season_type'] == 'REG']
+season_df = season_df.loc[season_df['position'].isin(position_list)]
 
+# sum snap stats for players for current season, not including pct because if a player doesn't play,
+# they aren't logged in that week which would throw off the season pct
+offense_snaps = weekly_df.groupby(['player_id', 'season'])['offense_snaps'].sum()
+season_df = season_df.merge(offense_snaps, how='left', on=['player_id', 'season'])
+
+# calculate positional ranks and tiers
 season_df['pos_rank'] = season_df.groupby(['position','season'])['lambda_fantasy_points'].rank(method = 'min', ascending = False).astype(int)
 season_df['pos_rank_label'] = season_df['position'] + season_df['pos_rank'].astype(str)
 
@@ -131,12 +157,3 @@ season_df['pos_tier_label'] = season_df['position'] + season_df['pos_tier'].asty
 for col in per_game_cols:
   column_name = str(col+'/g')
   season_df[column_name] = season_df[col]/season_df['games']
-
-
-# 2022 to-date snap data
-snap_df = nfl.import_snap_counts(current_year)
-snap_df = snap_df.loc[snap_df['position'].isin(position_list)].replace({
-    'position': {
-        'FB': 'RB'
-    }
-})

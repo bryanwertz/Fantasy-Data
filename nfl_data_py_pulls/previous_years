@@ -84,6 +84,12 @@ schedule_df = nfl.import_schedules(total_years)
 
 # 2012 - 2021 play by play data
 hist_pbp_df = nfl.import_pbp_data(hist_years, pbp_columns, downcast=True)
+merge_id_df = id_df[['gsis_id', 'position']].rename(columns={'gsis_id': 'passer_id', 'position': 'passer_position'})
+hist_pbp_df = hist_pbp_df.merge(merge_id_df, how = 'left', on = 'passer_id')
+merge_id_df = id_df[['gsis_id', 'position']].rename(columns={'gsis_id': 'rusher_id', 'position': 'rusher_position'})
+hist_pbp_df = hist_pbp_df.merge(merge_id_df, how = 'left', on = 'rusher_id')
+merge_id_df = id_df[['gsis_id', 'position']].rename(columns={'gsis_id': 'receiver_id', 'position': 'receiver_position'})
+hist_pbp_df = hist_pbp_df.merge(merge_id_df, how = 'left', on = 'receiver_id')
 
 # 2012 - 2021 snap data
 hist_snap_df = nfl.import_snap_counts(hist_years)

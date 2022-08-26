@@ -76,9 +76,17 @@ per_game_cols = ['completions', 'attempts', 'passing_yards', 'passing_tds', 'int
 
 # Weekly or dynamic data pulls, run daily or weekly
 
+# player id and defining data, gsis is the player_id key number
+id_df = nfl.import_ids()
+
 # 2022 to-date play by play data
 pbp_df = nfl.import_pbp_data(current_year, pbp_columns, downcast=True)
-
+merge_id_df = id_df[['gsis_id', 'position']].rename(columns={'gsis_id': 'passer_id', 'position': 'passer_position'})
+pbp_df = pbp_df.merge(merge_id_df, how = 'left', on = 'passer_id')
+merge_id_df = id_df[['gsis_id', 'position']].rename(columns={'gsis_id': 'rusher_id', 'position': 'rusher_position'})
+pbp_df = pbp_df.merge(merge_id_df, how = 'left', on = 'rusher_id')
+merge_id_df = id_df[['gsis_id', 'position']].rename(columns={'gsis_id': 'receiver_id', 'position': 'receiver_position'})
+pbp_df = pbp_df.merge(merge_id_df, how = 'left', on = 'receiver_id')
 
 # 2022 to-date snap data
 snap_df = nfl.import_snap_counts(current_year)

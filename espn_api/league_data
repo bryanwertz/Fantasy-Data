@@ -1,0 +1,359 @@
+%pip install espn_api
+
+import pandas as pd
+import numpy as np
+from espn_api.football import League
+
+# lambda league id
+league_id = 103483
+year = 2021
+
+league = League(league_id = league_id, year = year)
+
+league_size = len(league.teams)
+matchup_size = int(league_size / 2)
+current_week = 16
+reg_season_games = 14
+
+starters = {
+    'QB': 1,
+    'RB': 2,
+    'WR': 2,
+    'TE': 1,
+    'RB/WR/TE': 7, # 2 plus the number of RB, WR, and TE starters
+    'D/ST': 1
+}
+
+# create detailed league dataframe w/ player data
+
+league_df = pd.DataFrame()
+
+for i in range(1, reg_season_games + 1): #pull all box scores for a given week
+  
+  box_scores = league.box_scores(i)
+
+  for j in range(matchup_size): #select matchup from box scores from that week; assign home team info to 'team'
+
+    home_lineup = box_scores[j].home_lineup
+    lineup_df = pd.DataFrame()
+
+    lineup_pos = []
+    player_pos = []
+    eligible = []
+    id = []
+    name = []
+    points = []
+    proj_points = []
+
+    for k in range(len(home_lineup)): #build positional dataframe
+
+        lineup_pos.append(home_lineup[k].slot_position)
+        player_pos.append(home_lineup[k].position)
+        eligible.append(home_lineup[k].eligibleSlots)
+        id.append(home_lineup[k].playerId)
+        name.append(home_lineup[k].name)
+        points.append(home_lineup[k].points)
+        proj_points.append(home_lineup[k].projected_points)
+
+    lineup_df['lineup_pos'] = lineup_pos
+    lineup_df['player_pos'] = player_pos
+    lineup_df['eligible'] = eligible
+    lineup_df['player_id'] = id
+    lineup_df['name'] = name
+    lineup_df['points'] = points
+    lineup_df['proj_points'] = proj_points
+
+    matchup_df = lineup_df #.replace('RB/WR/TE', 'FLEX') - wait to relabel until calced optimal roster since RB/WR/TE is in eligible
+    matchup_df = matchup_df.assign(
+          team = box_scores[j].home_team.team_name,
+          opp = box_scores[j].away_team.team_name,
+          week = i,
+          points_for = box_scores[j].home_score,
+          points_against = box_scores[j].away_score)
+    
+    league_df = pd.concat([league_df, matchup_df])
+
+  for j in range(matchup_size): #select matchup from box scores from that week; assign away team info to 'team'
+
+    away_lineup = box_scores[j].away_lineup
+    lineup_df = pd.DataFrame()
+
+    lineup_pos = []
+    player_pos = []
+    eligible = []
+    id = []
+    name = []
+    points = []
+    proj_points = []
+
+    for k in range(len(away_lineup)): #build positional dataframe
+
+        lineup_pos.append(away_lineup[k].slot_position)
+        player_pos.append(away_lineup[k].position)
+        eligible.append(away_lineup[k].eligibleSlots)
+        id.append(away_lineup[k].playerId)
+        name.append(away_lineup[k].name)
+        points.append(away_lineup[k].points)
+        proj_points.append(away_lineup[k].projected_points)
+
+    lineup_df['lineup_pos'] = lineup_pos
+    lineup_df['player_pos'] = player_pos
+    lineup_df['eligible'] = eligible
+    lineup_df['player_id'] = id
+    lineup_df['name'] = name
+    lineup_df['points'] = points
+    lineup_df['proj_points'] = proj_points
+
+    matchup_df = lineup_df #.replace('RB/WR/TE', 'FLEX') - wait to relabel until calced optimal roster since RB/WR/TE is in eligible
+    matchup_df = matchup_df.assign(
+          team = box_scores[j].away_team.team_name,
+          opp = box_scores[j].home_team.team_name,
+          week = i,
+          points_for = box_scores[j].away_score,
+          points_against = box_scores[j].home_score)
+
+    league_df = pd.concat([league_df, matchup_df])
+
+league_df['lineup_pos_rank'] = league_df.groupby(['lineup_pos','team', 'week'])['points'].rank(method = 'min', ascending = False).astype(int)
+league_df['lineup_pos_rank_label'] = league_df['lineup_pos'] + league_df['lineup_pos_rank'].astype(str)
+league_df = league_df.drop(columns = ['lineup_pos_rank'])
+
+def qb_eligible(eligible):
+  if 'QB' in eligible:
+    return True
+  else:
+    pass
+
+def rb_eligible(eligible):
+  if 'RB' in eligible:
+    return True
+  else:
+    pass
+
+def wr_eligible(eligible):
+  if 'WR' in eligible:
+    return True
+  else:
+    pass
+
+def te_eligible(eligible):
+  if 'TE' in eligible:
+    return True
+  else:
+    pass
+
+def flex_eligible(eligible):
+  if 'RB/WR/TE' in eligible:
+    return True
+  else:
+    pass
+
+def dst_eligible(eligible):
+  if 'D/ST' in eligible:
+    return True
+  else:
+    pass
+
+league_df['qb_el'] = league_df['eligible'].apply(qb_eligible)
+league_df['rb_el'] = league_df['eligible'].apply(rb_eligible)
+league_df['wr_el'] = league_df['eligible'].apply(wr_eligible)
+league_df['te_el'] = league_df['eligible'].apply(te_eligible)
+league_df['flex_el'] = league_df['eligible'].apply(flex_eligible)
+league_df['dst_el'] = league_df['eligible'].apply(dst_eligible)
+
+league_df['qb_el_rank'] = league_df.groupby(['qb_el', 'team', 'week'])['points'].rank(method = 'first', ascending = False).astype(int)
+league_df['rb_el_rank'] = league_df.groupby(['rb_el', 'team', 'week'])['points'].rank(method = 'first', ascending = False).astype(int)
+league_df['wr_el_rank'] = league_df.groupby(['wr_el', 'team', 'week'])['points'].rank(method = 'first', ascending = False).astype(int)
+league_df['te_el_rank'] = league_df.groupby(['te_el', 'team', 'week'])['points'].rank(method = 'first', ascending = False).astype(int)
+league_df['flex_el_rank'] = league_df.groupby(['flex_el', 'team', 'week'])['points'].rank(method = 'first', ascending = False).astype(int)
+league_df['dst_el_rank'] = league_df.groupby(['dst_el', 'team', 'week'])['points'].rank(method = 'first', ascending = False).astype(int)
+
+league_df['opt_qb_start'] = np.where(league_df['qb_el_rank'] <= starters.get('QB'), True, False)
+league_df['opt_rb_start'] = np.where(league_df['rb_el_rank'] <= starters.get('RB'), True, False)
+league_df['opt_wr_start'] = np.where(league_df['wr_el_rank'] <= starters.get('WR'), True, False)
+league_df['opt_te_start'] = np.where(league_df['te_el_rank'] <= starters.get('TE'), True, False)
+league_df['opt_dst_start'] = np.where(league_df['dst_el_rank'] <= starters.get('D/ST'), True, False)
+
+def find_flex_start(df):
+  if df['flex_el_rank'] <= starters.get('RB/WR/TE'):
+    if df['opt_rb_start'] == False:
+      if df['opt_wr_start'] == False:
+        if df['opt_te_start'] == False:
+          return True
+        else:
+          return False
+      else:
+        return False
+    else:
+      return False          
+  else:
+    return False
+
+league_df['opt_flex_start'] = league_df.apply(find_flex_start, axis = 1)
+
+def optimal_lineup_sort(df):
+  if df['opt_qb_start'] == True:
+    return 'QB'
+  elif df['opt_rb_start'] == True:
+    return 'RB'
+  elif df['opt_wr_start'] == True:
+    return 'WR'
+  elif df['opt_te_start'] == True:
+    return 'TE'
+  elif df['opt_dst_start'] == True:
+    return 'D/ST'
+  elif df['opt_flex_start'] == True:
+    return 'FLEX'
+  else:
+    return 'BE'
+
+league_df['opt_lineup'] = league_df.apply(optimal_lineup_sort, axis = 1)
+
+drop_columns = [
+    'eligible', 'qb_el', 'rb_el', 'wr_el', 'te_el', 'flex_el', 'dst_el',
+    'qb_el_rank', 'rb_el_rank', 'wr_el_rank', 'te_el_rank', 'flex_el_rank', 'dst_el_rank',
+    'opt_qb_start', 'opt_rb_start', 'opt_wr_start', 'opt_te_start', 'opt_dst_start', 'opt_flex_start'
+]
+
+league_df = league_df.drop(columns = drop_columns).reset_index(drop = True)
+
+# create summarized weekly dataframe
+
+league_wk_df = pd.DataFrame()
+
+league_wk_df['opp'] = league_df.groupby(['team', 'week'])['opp'].last()
+league_wk_df['points_for'] = league_df.groupby(['team', 'week'])['points_for'].max()
+league_wk_df['points_against'] = league_df.groupby(['team', 'week'])['points_against'].max()
+league_wk_df['weekly_rank'] = league_wk_df.groupby('week')['points_for'].rank(method = 'min', ascending = False).astype(int)
+
+def result(df):
+  if df['points_for'] > df['points_against']:
+    return 'W'
+  elif df['points_for'] < df['points_against']:
+    return 'L'
+  else:
+    return 'D'
+
+league_wk_df['result'] = league_wk_df.apply(result, axis = 1)
+
+def win_margin(df):
+  if df['result'] == 'W':
+    return df['points_for'] - df['points_against']
+  else:
+    return None
+
+def loss_margin(df):
+  if df['result'] == 'L':
+    return df['points_for'] - df['points_against']
+  else:
+    return None
+
+league_wk_df['win_margin'] = league_wk_df.apply(win_margin, axis = 1)
+league_wk_df['loss_margin'] = league_wk_df.apply(loss_margin, axis = 1)
+
+# calculate optimal points and potential results
+
+opt_points_df = league_df.loc[league_df['opt_lineup'] != 'BE']
+
+opt_points_df = opt_points_df.groupby(['team','week'],as_index = False)['points'].sum()
+opt_points_df = opt_points_df.rename(columns = {'points': 'opt_points_for'})
+
+league_wk_df = league_wk_df.merge(opt_points_df, how = 'left', on = ['team', 'week'])
+
+opt_points_df = opt_points_df.rename(columns = {'team': 'opp', 'opt_points_for': 'opt_points_against'})
+
+league_wk_df = league_wk_df.merge(opt_points_df, how = 'left', on = ['opp', 'week'])
+
+def opt_result(df):
+  if df['opt_points_for'] > df['points_against']:
+    return 'W'
+  elif df['opt_points_for'] < df['points_against']:
+    return 'L'
+  else:
+    return 'D'
+
+def full_opt_result(df):
+  if df['opt_points_for'] > df['opt_points_against']:
+    return 'W'
+  elif df['opt_points_for'] < df['opt_points_against']:
+    return 'L'
+  else:
+    return 'D'
+
+league_wk_df['opt_result'] = league_wk_df.apply(opt_result, axis = 1)
+league_wk_df['full_opt_result'] = league_wk_df.apply(full_opt_result, axis = 1)
+
+league_wk_df['missed_points'] = league_wk_df['opt_points_for'] - league_wk_df['points_for']
+league_wk_df['missed_points'] = league_wk_df['missed_points'].round(1)
+league_wk_df['points_eff'] = league_wk_df['points_for'] / league_wk_df['opt_points_for']
+
+def opt_wins_added(df):
+  if df['result'] == 'L':
+    if df['opt_result'] == 'W':
+      return 1
+    elif df['opt_result'] == 'D':
+      return 0.5
+    else:
+      return 0
+  elif df['result'] == 'W':
+    if df['opt_result'] == 'L':
+      return -1
+    elif df['opt_result'] == 'D':
+      return -0.5
+    else:
+      return 0
+  else:
+    if df['opt_result'] == 'W':
+      return 0.5
+    elif df['opt_result'] == 'L':
+      return -0.5
+    else:
+      return 0
+ 
+def full_opt_wins_added(df):
+  if df['result'] == 'L':
+    if df['full_opt_result'] == 'W':
+      return 1
+    elif df['full_opt_result'] == 'D':
+      return 0.5
+    else:
+      return 0
+  elif df['result'] == 'W':
+    if df['full_opt_result'] == 'L':
+      return -1
+    elif df['full_opt_result'] == 'D':
+      return -0.5
+    else:
+      return 0
+  else:
+    if df['full_opt_result'] == 'W':
+      return 0.5
+    elif df['full_opt_result'] == 'L':
+      return -0.5
+    else:
+      return 0 
+
+league_wk_df['opt_wins_added'] = league_wk_df.apply(opt_wins_added, axis = 1)
+league_wk_df['full_opt_wins_added'] = league_wk_df.apply(full_opt_wins_added, axis = 1)
+
+# create season summary dataframe 
+
+league_sn_df = pd.DataFrame()
+
+league_sn_df['points_for'] = league_wk_df.groupby('team')['points_for'].sum()
+league_sn_df['points_against'] = league_wk_df.groupby('team')['points_against'].sum()
+league_sn_df['win_margin'] = league_wk_df.groupby('team')['win_margin'].mean().round(1)
+league_sn_df['loss_margin'] = league_wk_df.groupby('team')['loss_margin'].mean().round(1)
+league_sn_df['weekly_first'] = league_wk_df.groupby('team')['weekly_rank'].apply(lambda x: x[x == 1].count())
+league_sn_df['weekly_second'] = league_wk_df.groupby('team')['weekly_rank'].apply(lambda x: x[x == 2].count())
+league_sn_df['weekly_third'] = league_wk_df.groupby('team')['weekly_rank'].apply(lambda x: x[x == 3].count())
+league_sn_df['weekly_last'] = league_wk_df.groupby('team')['weekly_rank'].apply(lambda x: x[x == 12].count())
+league_sn_df['opt_points_for'] = league_wk_df.groupby('team')['opt_points_for'].sum()
+league_sn_df['opt_points_against'] = league_wk_df.groupby('team')['opt_points_against'].sum()
+league_sn_df['points_eff'] = league_wk_df.groupby('team')['points_eff'].mean()
+league_sn_df['missed_points'] = league_wk_df.groupby('team')['missed_points'].sum()
+league_sn_df['wins'] = league_wk_df.groupby('team')['result'].apply(lambda x: x[x.str.contains('W')].count())
+league_sn_df['opt_wins'] = league_wk_df.groupby('team')['opt_result'].apply(lambda x: x[x.str.contains('W')].count())
+league_sn_df['full_opt_wins'] = league_wk_df.groupby('team')['full_opt_result'].apply(lambda x: x[x.str.contains('W')].count())
+league_sn_df['opt_wins_added'] = league_wk_df.groupby('team')['opt_wins_added'].sum()
+league_sn_df['full_opt_wins_added'] = league_wk_df.groupby('team')['full_opt_wins_added'].sum()

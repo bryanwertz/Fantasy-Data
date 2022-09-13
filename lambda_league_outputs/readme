@@ -1,0 +1,5 @@
+# Creating folder for outputs of lambda league scripts
+
+# Expected outputs include:
+
+#   Full league_df, league_wk_df, league_sn_df
